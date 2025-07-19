@@ -1,204 +1,297 @@
 import { logger } from '@elizaos/core';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { Service, IAgentRuntime } from '@elizaos/core';
+import type { ApiOptions } from '@polkadot/api/types';
+import { validateNetworkConfig, getNetworkRpcUrl } from '../enviroment';
+import { IAgentRuntime } from '@elizaos/core';
 
-const DEFAULT_NETWORK_CONFIG = {
-    DEFAULT_ENDPOINT: 'wss://rpc.polkadot.io',
-    BACKUP_ENDPOINTS: [
-        'wss://polkadot-rpc.dwellir.com',
-        'wss://polkadot.api.onfinality.io/public-ws',
-        'wss://rpc.ibp.network/polkadot',
-        'wss://polkadot-rpc.publicnode.com',
-    ],
-    MAX_RETRIES: 3,
-    RETRY_DELAY: 2000,
+export enum NetworkType {
+    RELAY = 'relay',
+    ASSET_HUB = 'asset-hub',
+}
+
+interface NetworkConfig {
+    DEFAULT_ENDPOINT: string;
+    BACKUP_ENDPOINTS: string[];
+    MAX_RETRIES: number;
+    RETRY_DELAY: number;
+}
+
+const NETWORK_CONFIGS: Record<NetworkType, NetworkConfig> = {
+    [NetworkType.RELAY]: {
+        DEFAULT_ENDPOINT: 'wss://rpc.polkadot.io',
+        BACKUP_ENDPOINTS: [
+            'wss://polkadot-rpc.dwellir.com',
+            'wss://polkadot.api.onfinality.io/public-ws',
+            'wss://rpc.ibp.network/polkadot',
+        ],
+        MAX_RETRIES: 3,
+        RETRY_DELAY: 3000,
+    },
+    [NetworkType.ASSET_HUB]: {
+        DEFAULT_ENDPOINT: 'wss://polkadot-asset-hub-rpc.polkadot.io',
+        BACKUP_ENDPOINTS: [
+            'wss://asset-hub-polkadot-rpc.dwellir.com',
+            'wss://polkadot-asset-hub.api.onfinality.io/public-ws',
+        ],
+        MAX_RETRIES: 3,
+        RETRY_DELAY: 3000,
+    },
 };
 
 /**
- * Singleton service that manages connection to the Polkadot API
- * Includes connection pooling, retry logic, and endpoint fallback
+ * Static utility for managing Polkadot network connections
+ *
+ * Primary usage:
+ * - `PolkadotApiService.getRelayConnection(runtime)` - For relay chain operations
+ * - `PolkadotApiService.getAssetHubConnection(runtime)` - For Asset Hub operations
  */
-export class PolkadotApiService extends Service {
+export class PolkadotApiService {
     static serviceType = 'polkadot_api' as const;
     capabilityDescription = 'The agent is able to interact with the Polkadot API';
 
-    private static _instance: PolkadotApiService | null = null;
-    private api: ApiPromise | null = null;
-    private provider: WsProvider | null = null;
-    private connecting = false;
-    private connectionPromise: Promise<ApiPromise> | null = null;
-    private lastEndpointIndex = 0;
-    private networkConfig = { ...DEFAULT_NETWORK_CONFIG };
+    private static connections: Map<NetworkType, ApiPromise> = new Map();
+    private static providers: Map<NetworkType, WsProvider> = new Map();
+    private static connecting: Map<NetworkType, Promise<ApiPromise>> = new Map();
 
-    constructor(protected runtime: IAgentRuntime) {
-        super();
+    // ============================================================================
+    // MAIN PUBLIC API
+    // ============================================================================
+
+    /**
+     * Get a RELAY chain connection (lazy loading)
+     */
+    static async getRelayConnection(runtime: IAgentRuntime): Promise<ApiPromise> {
+        return PolkadotApiService.getConnection(runtime, NetworkType.RELAY);
     }
 
-    static async start(runtime: IAgentRuntime): Promise<PolkadotApiService> {
-        if (!PolkadotApiService._instance) {
-            PolkadotApiService._instance = new PolkadotApiService(runtime);
-            await PolkadotApiService._instance.initialize();
-            await PolkadotApiService._instance.connectWithRetry();
-        }
-        return PolkadotApiService._instance;
+    /**
+     * Get an ASSET_HUB connection (lazy loading)
+     */
+    static async getAssetHubConnection(runtime: IAgentRuntime): Promise<ApiPromise> {
+        return PolkadotApiService.getConnection(runtime, NetworkType.ASSET_HUB);
     }
 
-    async stop(): Promise<void> {
-        await this.disconnect();
-        PolkadotApiService._instance = null;
-    }
+    /**
+     * Connect to both networks
+     * Throws if either connection fails
+     */
+    static async connectBothNetworks(runtime: IAgentRuntime): Promise<void> {
+        const results = await Promise.allSettled([
+            PolkadotApiService.getConnection(runtime, NetworkType.RELAY),
+            PolkadotApiService.getConnection(runtime, NetworkType.ASSET_HUB),
+        ]);
 
-    async initialize(): Promise<void> {
-        const customEndpoint = this.runtime.getSetting('POLKADOT_RPC_URL');
-
-        if (customEndpoint) {
-            this.networkConfig.DEFAULT_ENDPOINT = customEndpoint;
-            logger.debug(`Using custom Polkadot endpoint: ${customEndpoint}`);
-        } else {
-            logger.debug(
-                `No custom endpoint found, using default: ${this.networkConfig.DEFAULT_ENDPOINT}`,
+        const failures = results
+            .map((result, index) => ({
+                network: index === 0 ? NetworkType.RELAY : NetworkType.ASSET_HUB,
+                result,
+            }))
+            .filter(({ result }) => result.status === 'rejected')
+            .map(
+                ({ network, result }) =>
+                    `${network}: ${result.status === 'rejected' ? result.reason : 'Unknown error'}`,
             );
+
+        if (failures.length > 0) {
+            throw new Error(`Failed to connect networks: ${failures.join(', ')}`);
         }
     }
 
+    // ============================================================================
+    // CONNECTION MANAGEMENT
+    // ============================================================================
+
     /**
-     * Get a connection to the Polkadot API
-     * If a connection is already established, it will be reused
-     * If no connection exists, a new one will be created
-     * If a connection is being established, the existing promise will be returned
+     * Get connection for any network type (internal method)
      */
-    public async getConnection(): Promise<ApiPromise> {
-        if (this.api?.isConnected) {
-            return this.api;
+    private static async getConnection(
+        runtime: IAgentRuntime,
+        networkType: NetworkType,
+    ): Promise<ApiPromise> {
+        // Return existing connection if available
+        const existingConnection = PolkadotApiService.connections.get(networkType);
+        if (existingConnection?.isConnected) {
+            return existingConnection;
         }
 
-        if (this.connecting && this.connectionPromise) {
-            return this.connectionPromise;
+        // Return existing connection promise if already connecting
+        const existingPromise = PolkadotApiService.connecting.get(networkType);
+        if (existingPromise) {
+            return existingPromise;
         }
 
-        this.connecting = true;
-        this.connectionPromise = this.connectWithRetry();
+        // Start new connection
+        const connectionPromise = PolkadotApiService.createConnection(runtime, networkType);
+        PolkadotApiService.connecting.set(networkType, connectionPromise);
 
         try {
-            this.api = await this.connectionPromise;
-            return this.api;
+            const connection = await connectionPromise;
+            PolkadotApiService.connections.set(networkType, connection);
+            return connection;
         } finally {
-            this.connecting = false;
-            this.connectionPromise = null;
+            PolkadotApiService.connecting.delete(networkType);
         }
     }
 
     /**
-     * Connect to the Polkadot API with retry logic
-     * @param retryCount Current retry attempt number
+     * Create a new connection with retry logic
      */
-    private async connectWithRetry(retryCount = 0): Promise<ApiPromise> {
-        try {
-            const endpoint = this.getNextEndpoint();
-            logger.debug(`Connecting to Polkadot at ${endpoint}`);
+    private static async createConnection(
+        runtime: IAgentRuntime,
+        networkType: NetworkType,
+    ): Promise<ApiPromise> {
+        const config = await PolkadotApiService.getNetworkConfig(runtime, networkType);
+        const endpoints = [config.DEFAULT_ENDPOINT, ...config.BACKUP_ENDPOINTS];
 
-            this.provider = new WsProvider(endpoint);
-            this.api = await ApiPromise.create({ provider: this.provider });
+        let lastError: Error | null = null;
 
-            logger.debug(`Connected to Polkadot at ${endpoint}`);
-            return this.api;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            logger.error(`Polkadot connection error: ${message}`);
+        for (let attempt = 0; attempt < config.MAX_RETRIES; attempt++) {
+            for (const endpoint of endpoints) {
+                try {
+                    logger.debug(
+                        `Connecting to ${networkType} at ${endpoint} (attempt ${attempt + 1})`,
+                    );
 
-            if (retryCount < this.networkConfig.MAX_RETRIES) {
-                const delay = this.networkConfig.RETRY_DELAY * 2 ** retryCount;
-                logger.debug(`Retrying connection in ${delay}ms...`);
+                    const provider = new WsProvider(endpoint);
 
-                await new Promise((resolve) => setTimeout(resolve, delay));
-                return this.connectWithRetry(retryCount + 1);
+                    // Create connection with proper signed extensions based on network type
+                    const apiConfig = PolkadotApiService.getApiConfig(networkType, provider);
+                    const connectionPromise = ApiPromise.create(apiConfig);
+                    const timeoutPromise = new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('Connection timeout after 15s')), 15000),
+                    );
+
+                    const api = await Promise.race([connectionPromise, timeoutPromise]);
+
+                    PolkadotApiService.providers.set(networkType, provider);
+                    logger.debug(`Connected to ${networkType} at ${endpoint}`);
+
+                    return api;
+                } catch (error) {
+                    lastError = error instanceof Error ? error : new Error(String(error));
+                    logger.warn(
+                        `Failed to connect to ${networkType} at ${endpoint}: ${lastError.message}`,
+                    );
+                }
             }
 
-            throw new Error(
-                `Failed to connect to Polkadot after ${this.networkConfig.MAX_RETRIES} attempts`,
-            );
+            // Only retry if we have more attempts (no delay on single endpoint)
+            if (attempt < config.MAX_RETRIES - 1 && endpoints.length > 1) {
+                const delay = 500; // Much shorter delay
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
         }
+
+        throw new Error(
+            `Failed to connect to ${networkType} after ${config.MAX_RETRIES} attempts. Last error: ${lastError?.message}`,
+        );
     }
 
     /**
-     * Get the next endpoint to try from the configured endpoints
-     * This implements a round-robin selection strategy
+     * Get API configuration with appropriate signed extensions for each network type
      */
-    private getNextEndpoint(): string {
-        const allEndpoints = [
-            this.networkConfig.DEFAULT_ENDPOINT,
-            ...this.networkConfig.BACKUP_ENDPOINTS,
+    private static getApiConfig(networkType: NetworkType, provider: WsProvider): ApiOptions {
+        const baseConfig: ApiOptions = { provider };
+
+        if (networkType === NetworkType.ASSET_HUB) {
+            // Asset Hub requires ChargeAssetTxPayment for asset-based fee payment
+            return {
+                ...baseConfig,
+                signedExtensions: {
+                    ChargeAssetTxPayment: {
+                        extrinsic: {
+                            tip: 'Compact<Balance>',
+                            assetId: 'Option<MultiLocation>',
+                        },
+                        payload: {},
+                    },
+                },
+            } as ApiOptions;
+        }
+
+        // Relay chain uses default configuration
+        return baseConfig;
+    }
+
+    /**
+     * Get network configuration with environment overrides
+     */
+    private static async getNetworkConfig(
+        runtime: IAgentRuntime,
+        networkType: NetworkType,
+    ): Promise<NetworkConfig> {
+        const config = { ...NETWORK_CONFIGS[networkType] };
+
+        try {
+            const networkConfig = await validateNetworkConfig(runtime);
+            const customEndpoint = getNetworkRpcUrl(networkConfig, networkType);
+
+            if (customEndpoint) {
+                config.DEFAULT_ENDPOINT = customEndpoint;
+                // Clear backup endpoints when using custom endpoint to avoid fallback in tests
+                config.BACKUP_ENDPOINTS = [];
+                logger.debug(`Using custom ${networkType} endpoint: ${customEndpoint}`);
+            }
+        } catch (_error) {
+            logger.warn(`Failed to load custom config for ${networkType}, using defaults`);
+        }
+
+        return config;
+    }
+
+    // ============================================================================
+    // STATUS AND CLEANUP
+    // ============================================================================
+
+    /**
+     * Check if a specific network is connected
+     */
+    static isConnected(networkType: NetworkType): boolean {
+        const connection = PolkadotApiService.connections.get(networkType);
+        return !!connection && connection.isConnected;
+    }
+
+    /**
+     * Check if both networks are connected
+     */
+    static areBothNetworksConnected(): boolean {
+        return (
+            PolkadotApiService.isConnected(NetworkType.RELAY) &&
+            PolkadotApiService.isConnected(NetworkType.ASSET_HUB)
+        );
+    }
+
+    /**
+     * Disconnect a specific network
+     */
+    static async disconnect(networkType: NetworkType): Promise<void> {
+        const connection = PolkadotApiService.connections.get(networkType);
+        const provider = PolkadotApiService.providers.get(networkType);
+
+        if (connection) {
+            await connection.disconnect();
+            PolkadotApiService.connections.delete(networkType);
+        }
+
+        if (provider) {
+            provider.disconnect();
+            PolkadotApiService.providers.delete(networkType);
+        }
+
+        logger.debug(`Disconnected from ${networkType}`);
+    }
+
+    /**
+     * Disconnect all networks
+     */
+    static async disconnectAll(): Promise<void> {
+        const disconnectPromises = [
+            PolkadotApiService.disconnect(NetworkType.RELAY),
+            PolkadotApiService.disconnect(NetworkType.ASSET_HUB),
         ];
-        this.lastEndpointIndex = this.lastEndpointIndex % allEndpoints.length;
-        logger.debug(`Next endpoint: ${allEndpoints[this.lastEndpointIndex]}`);
-        return allEndpoints[this.lastEndpointIndex];
-    }
 
-    /**
-     * Disconnect from the Polkadot API
-     * This should be called when the application is shutting down
-     */
-    public async disconnect(): Promise<void> {
-        if (this.api) {
-            await this.api.disconnect();
-            this.api = null;
-        }
-
-        if (this.provider) {
-            this.provider.disconnect();
-            this.provider = null;
-        }
-    }
-
-    /**
-     * Check if a connection is currently established
-     */
-    public isConnected(): boolean {
-        return !!this.api && this.api.isConnected;
-    }
-
-    /**
-     * Get information about the current connection
-     * Returns null if no connection is established
-     */
-    public getConnectionInfo(): { endpoint: string; connected: boolean } | null {
-        if (!this.provider) {
-            return null;
-        }
-
-        return {
-            endpoint: this.provider.endpoint,
-            connected: this.isConnected(),
-        };
-    }
-
-    /**
-     * Set custom endpoints for the API connection
-     * This allows endpoints to be configured at runtime
-     * @param endpoints Array of WebSocket endpoints
-     */
-    public setCustomEndpoints(endpoints: string[]): void {
-        if (!endpoints || endpoints.length === 0) {
-            return;
-        }
-
-        // Only update if there's at least one valid endpoint
-        if (endpoints.some((e) => e.startsWith('wss://') || e.startsWith('ws://'))) {
-            // Replace the existing configuration
-            Object.defineProperty(this.networkConfig, 'DEFAULT_ENDPOINT', {
-                value: endpoints[0],
-                writable: true,
-            });
-
-            Object.defineProperty(this.networkConfig, 'BACKUP_ENDPOINTS', {
-                value: endpoints.slice(1),
-                writable: true,
-            });
-
-            // Reset the endpoint index
-            this.lastEndpointIndex = 0;
-            logger.debug(`Updated Polkadot API endpoints: ${endpoints.join(', ')}`);
-        }
+        await Promise.all(disconnectPromises);
+        logger.debug('Disconnected from all networks');
     }
 }
 

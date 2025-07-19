@@ -1,5 +1,5 @@
 import type { IAgentRuntime } from '@elizaos/core';
-import { describe, it, vi, beforeEach, expect } from 'vitest';
+import { describe, it, vi, beforeEach, expect, afterEach } from 'vitest';
 import { GetReferendaAction } from '../actions/getReferenda';
 import { PolkadotApiService } from '../services/api-service';
 import { CacheManager } from '../utils/cache';
@@ -21,7 +21,6 @@ vi.mock('@elizaos/core', async () => {
 describe('GetReferendaAction', () => {
     let mockRuntime: IAgentRuntime;
     let getReferendaAction: GetReferendaAction;
-    let apiService: PolkadotApiService;
 
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -43,8 +42,12 @@ describe('GetReferendaAction', () => {
             composeState: vi.fn().mockResolvedValue({}),
         } as unknown as IAgentRuntime;
 
-        apiService = await PolkadotApiService.start(mockRuntime);
         getReferendaAction = new GetReferendaAction(mockRuntime);
+    });
+
+    afterEach(async () => {
+        await PolkadotApiService.disconnectAll();
+        vi.restoreAllMocks();
     });
 
     describe('API Integration', () => {
@@ -129,7 +132,6 @@ describe('GetReferendaAction', () => {
 
     describe('Error Handling', () => {
         it('should handle connection failures gracefully', async () => {
-            // Create a new instance with invalid RPC URL
             const badRuntime = {
                 ...mockRuntime,
                 getSetting: vi.fn().mockImplementation((param) => {
@@ -140,10 +142,9 @@ describe('GetReferendaAction', () => {
                 }),
             } as unknown as IAgentRuntime;
 
-            apiService.stop();
-            PolkadotApiService.start(badRuntime);
+            const badAction = new GetReferendaAction(badRuntime);
 
-            await expect(getReferendaAction.getReferenda()).rejects.toThrow();
+            await expect(badAction.getReferenda()).rejects.toThrow();
         });
 
         it('should handle invalid limit values', async () => {

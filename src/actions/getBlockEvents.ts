@@ -197,8 +197,7 @@ export class GetBlockEventsAction {
         limitApplied?: number;
     }> {
         try {
-            const apiService = await PolkadotApiService.start(this.runtime);
-            const api = await apiService.getConnection();
+            const api = await PolkadotApiService.getRelayConnection(this.runtime);
 
             let blockHash: string;
             let blockNumber: string;

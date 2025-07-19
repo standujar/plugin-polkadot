@@ -131,8 +131,7 @@ export class TransferFundsAction {
             throw new Error('No keypair found in the wallet');
         }
 
-        const apiService = await PolkadotApiService.start(this.runtime);
-        const api = await apiService.getConnection();
+        const api = await PolkadotApiService.getRelayConnection(this.runtime);
         logger.debug('API connection established');
 
         const properties = await api.rpc.system.properties();

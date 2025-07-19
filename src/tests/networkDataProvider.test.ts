@@ -8,10 +8,10 @@ const POLKADOT_RPC_URL = 'wss://rpc.polkadot.io';
 
 describe('Network Data Provider', () => {
     let mockRuntime: IAgentRuntime;
-    let apiService: PolkadotApiService;
     let mockMessage: Memory;
     let mockState: State;
     const cacheManager = new CacheManager();
+
     beforeEach(async () => {
         vi.clearAllMocks();
 
@@ -38,11 +38,10 @@ describe('Network Data Provider', () => {
         } as unknown as Memory;
 
         mockState = {} as State;
-
-        apiService = await PolkadotApiService.start(mockRuntime);
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+        await PolkadotApiService.disconnectAll();
         vi.restoreAllMocks();
     });
 
@@ -117,9 +116,6 @@ describe('Network Data Provider', () => {
                     return null;
                 }),
             } as unknown as IAgentRuntime;
-
-            apiService.stop();
-            PolkadotApiService.start(badRuntime);
 
             const result = await networkDataProvider.get(badRuntime, mockMessage, mockState);
 
