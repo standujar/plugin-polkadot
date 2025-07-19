@@ -1,0 +1,5 @@
+endpoint: wss://asset-hub-polkadot-rpc.dwellir.com
+port: 8000
+build-block-mode: Instant
+runtime-log-level: 5
+mock-signature-host: true

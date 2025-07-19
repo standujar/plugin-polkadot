@@ -36,7 +36,9 @@ async function fetchPrices(runtime, coinMarketCapApiKey) {
         );
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+          throw new Error(
+            `HTTP error! status: ${response.status}, message: ${errorText}`
+          );
         }
         const data = await response.json();
         const price = data?.data?.[PROVIDER_CONFIG.NATIVE_TOKEN_SYMBOL]?.quote?.USD;
@@ -148,7 +150,9 @@ function decrypt(encryptedString, password) {
     }
     const parts = encryptedString.split(":");
     if (parts.length !== 3) {
-      throw new Error("Invalid encrypted data format (expected kdfSaltHex:nonceHex:encryptedHex)");
+      throw new Error(
+        "Invalid encrypted data format (expected kdfSaltHex:nonceHex:encryptedHex)"
+      );
     }
     const [kdfSaltHex, nonceHex, encryptedHex] = parts;
     const kdfSalt = hexToU8a(kdfSaltHex);
@@ -307,7 +311,10 @@ var WalletProvider = class _WalletProvider {
       }
       return files.length;
     } catch (_error) {
-      logger3.warn("Error reading backup directory for wallet numbering, defaulting to 1:", _error);
+      logger3.warn(
+        "Error reading backup directory for wallet numbering, defaulting to 1:",
+        _error
+      );
       return 1;
     }
   }
@@ -352,7 +359,9 @@ var WalletProvider = class _WalletProvider {
         });
       }
       if (walletData.encryptedData && !password) {
-        throw new Error(`Wallet found in cache but no password provided for address ${address}`);
+        throw new Error(
+          `Wallet found in cache but no password provided for address ${address}`
+        );
       }
     }
     const backupDir = path.join(process.cwd(), PROVIDER_CONFIG.WALLET_BACKUP_DIRNAME);
@@ -493,7 +502,9 @@ var WalletProvider = class _WalletProvider {
       try {
         logger3.debug("Attempting to parse and validate decrypted JSON for wallet data");
         const parsedJson = JSON.parse(decryptedJson);
-        walletData = decryptedWalletBackupDataSchema.parse(parsedJson);
+        walletData = decryptedWalletBackupDataSchema.parse(
+          parsedJson
+        );
         logger3.debug("Successfully parsed and validated wallet data structure");
       } catch (parseError) {
         logger3.error("JSON Parse or Validation Error:", {
@@ -507,7 +518,9 @@ var WalletProvider = class _WalletProvider {
         throw new Error(`Failed to parse decrypted wallet data: ${parseError.message}`);
       }
       if (!walletData.mnemonic || !walletData.options) {
-        logger3.error("Missing required fields (mnemonic or options) in parsed wallet data.");
+        logger3.error(
+          "Missing required fields (mnemonic or options) in parsed wallet data."
+        );
         throw new Error("Decrypted data missing required fields (mnemonic or options)");
       }
       const keyringInitOptions = walletData.options;
@@ -518,7 +531,9 @@ var WalletProvider = class _WalletProvider {
         keyringInitOptions.type = PROVIDER_CONFIG.DEFAULT_KEYRING_TYPE;
       }
       if (keyringInitOptions.ss58Format === void 0 || keyringInitOptions.ss58Format === null) {
-        logger3.warn("ss58Format missing in decrypted options, defaulting as per PROVIDER_CONFIG");
+        logger3.warn(
+          "ss58Format missing in decrypted options, defaulting as per PROVIDER_CONFIG"
+        );
         keyringInitOptions.ss58Format = PROVIDER_CONFIG.DEFAULT_KEYRING_SS58_FORMAT;
       }
       this._initKeyringFromDetails(
@@ -1288,7 +1303,9 @@ var SignMessageAction = class {
         password
       );
       if (!targetWallet) {
-        throw new Error(`Failed to load wallet #${walletNumber}. Please check the wallet number.`);
+        throw new Error(
+          `Failed to load wallet #${walletNumber}. Please check the wallet number.`
+        );
       }
       currentWalletNumber = walletNumber;
     } else if (walletAddress) {
@@ -1595,7 +1612,9 @@ var ValidateAction = class {
   }
   async validateSignature(messageToVerify, signature, walletNumber, walletAddress, password) {
     if (!walletNumber && !walletAddress) {
-      throw new Error("Unable to validate signature. Please provide a wallet number or address.");
+      throw new Error(
+        "Unable to validate signature. Please provide a wallet number or address."
+      );
     }
     if (!messageToVerify) {
       throw new Error("Cannot validate signature for an empty message");
@@ -1612,7 +1631,9 @@ var ValidateAction = class {
         password
       );
       if (!targetWallet) {
-        throw new Error(`Failed to load wallet #${walletNumber}. Please check the wallet number.`);
+        throw new Error(
+          `Failed to load wallet #${walletNumber}. Please check the wallet number.`
+        );
       }
       currentWalletNumber = walletNumber;
     } else if (walletAddress) {
@@ -1682,7 +1703,11 @@ var validateSignature_default = {
   description: "Validates a signature for a message using a Polkadot wallet. Returns whether the signature is valid.",
   handler: async (runtime, message, state, _options, callback) => {
     logger8.log("Starting VALIDATE_POLKADOT_SIGNATURE action...");
-    const validateSignatureContent = await buildValidateSignatureDetails(runtime, message, state);
+    const validateSignatureContent = await buildValidateSignatureDetails(
+      runtime,
+      message,
+      state
+    );
     if (!isValidateSignatureContent(validateSignatureContent)) {
       if (callback) {
         callback({
@@ -1765,183 +1790,264 @@ var validateSignature_default = {
 
 // src/actions/getBalance.ts
 import { logger as logger10, ModelType as ModelType6, composePromptFromState as composePromptFromState6, parseJSONObjectFromText as parseJSONObjectFromText6 } from "@elizaos/core";
-import { z as z7 } from "zod";
+import { z as z8 } from "zod";
 import { formatBalance } from "@polkadot/util";
 
 // src/services/api-service.ts
 import { logger as logger9 } from "@elizaos/core";
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { Service } from "@elizaos/core";
-var DEFAULT_NETWORK_CONFIG = {
-  DEFAULT_ENDPOINT: "wss://rpc.polkadot.io",
-  BACKUP_ENDPOINTS: [
-    "wss://polkadot-rpc.dwellir.com",
-    "wss://polkadot.api.onfinality.io/public-ws",
-    "wss://rpc.ibp.network/polkadot",
-    "wss://polkadot-rpc.publicnode.com"
-  ],
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 2e3
+
+// src/enviroment.ts
+import { z as z7 } from "zod";
+var CONFIG_KEYS = {
+  POLKADOT_PRIVATE_KEY: "POLKADOT_PRIVATE_KEY",
+  POLKADOT_RELAY_RPC_URL: "POLKADOT_RELAY_RPC_URL",
+  POLKADOT_ASSET_HUB_RPC_URL: "POLKADOT_ASSET_HUB_RPC_URL",
+  POLKADOT_RPC_API_KEY: "POLKADOT_RPC_API_KEY",
+  POLKADOT_MANIFEST_URL: "POLKADOT_MANIFEST_URL",
+  POLKADOT_BRIDGE_URL: "POLKADOT_BRIDGE_URL",
+  USE_CACHE_MANAGER: "USE_CACHE_MANAGER",
+  // Legacy support - deprecated
+  POLKADOT_RPC_URL: "POLKADOT_RPC_URL"
 };
-var PolkadotApiService = class _PolkadotApiService extends Service {
-  constructor(runtime) {
-    super();
-    this.runtime = runtime;
+var envSchema = z7.object({
+  POLKADOT_PRIVATE_KEY: z7.string().min(1, "private key is required"),
+  POLKADOT_RELAY_RPC_URL: z7.string().optional(),
+  POLKADOT_ASSET_HUB_RPC_URL: z7.string().optional(),
+  POLKADOT_RPC_API_KEY: z7.string().optional(),
+  POLKADOT_MANIFEST_URL: z7.string().optional(),
+  POLKADOT_BRIDGE_URL: z7.string().optional(),
+  // Legacy support - deprecated
+  POLKADOT_RPC_URL: z7.string().optional()
+});
+var networkConfigSchema = z7.object({
+  POLKADOT_RELAY_RPC_URL: z7.string().optional(),
+  POLKADOT_ASSET_HUB_RPC_URL: z7.string().optional(),
+  POLKADOT_RPC_API_KEY: z7.string().optional(),
+  // Legacy support - deprecated
+  POLKADOT_RPC_URL: z7.string().optional()
+});
+async function validateNetworkConfig(runtime) {
+  try {
+    const config = {
+      POLKADOT_RELAY_RPC_URL: runtime.getSetting(CONFIG_KEYS.POLKADOT_RELAY_RPC_URL) || process.env.POLKADOT_RELAY_RPC_URL,
+      POLKADOT_ASSET_HUB_RPC_URL: runtime.getSetting(CONFIG_KEYS.POLKADOT_ASSET_HUB_RPC_URL) || process.env.POLKADOT_ASSET_HUB_RPC_URL,
+      POLKADOT_RPC_API_KEY: runtime.getSetting(CONFIG_KEYS.POLKADOT_RPC_API_KEY) || process.env.POLKADOT_RPC_API_KEY,
+      // Legacy support - fallback to old key
+      POLKADOT_RPC_URL: runtime.getSetting(CONFIG_KEYS.POLKADOT_RPC_URL) || process.env.POLKADOT_RPC_URL
+    };
+    return networkConfigSchema.parse(config);
+  } catch (error) {
+    if (error instanceof z7.ZodError) {
+      const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join("\n");
+      throw new Error(`Polkadot network configuration validation failed:
+${errorMessages}`);
+    }
+    throw error;
   }
+}
+function getNetworkRpcUrl(networkConfig, networkType) {
+  switch (networkType) {
+    case "relay":
+      return networkConfig.POLKADOT_RELAY_RPC_URL || networkConfig.POLKADOT_RPC_URL;
+    case "asset-hub":
+      return networkConfig.POLKADOT_ASSET_HUB_RPC_URL;
+    default:
+      return void 0;
+  }
+}
+
+// src/services/api-service.ts
+var NETWORK_CONFIGS = {
+  ["relay" /* RELAY */]: {
+    DEFAULT_ENDPOINT: "wss://rpc.polkadot.io",
+    BACKUP_ENDPOINTS: [
+      "wss://polkadot-rpc.dwellir.com",
+      "wss://polkadot.api.onfinality.io/public-ws",
+      "wss://rpc.ibp.network/polkadot"
+    ],
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 3e3
+  },
+  ["asset-hub" /* ASSET_HUB */]: {
+    DEFAULT_ENDPOINT: "wss://polkadot-asset-hub-rpc.polkadot.io",
+    BACKUP_ENDPOINTS: [
+      "wss://asset-hub-polkadot-rpc.dwellir.com",
+      "wss://polkadot-asset-hub.api.onfinality.io/public-ws"
+    ],
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 3e3
+  }
+};
+var PolkadotApiService = class _PolkadotApiService {
   static serviceType = "polkadot_api";
   capabilityDescription = "The agent is able to interact with the Polkadot API";
-  static _instance = null;
-  api = null;
-  provider = null;
-  connecting = false;
-  connectionPromise = null;
-  lastEndpointIndex = 0;
-  networkConfig = { ...DEFAULT_NETWORK_CONFIG };
-  static async start(runtime) {
-    if (!_PolkadotApiService._instance) {
-      _PolkadotApiService._instance = new _PolkadotApiService(runtime);
-      await _PolkadotApiService._instance.initialize();
-      await _PolkadotApiService._instance.connectWithRetry();
-    }
-    return _PolkadotApiService._instance;
-  }
-  async stop() {
-    await this.disconnect();
-    _PolkadotApiService._instance = null;
-  }
-  async initialize() {
-    const customEndpoint = this.runtime.getSetting("POLKADOT_RPC_URL");
-    if (customEndpoint) {
-      this.networkConfig.DEFAULT_ENDPOINT = customEndpoint;
-      logger9.debug(`Using custom Polkadot endpoint: ${customEndpoint}`);
-    } else {
-      logger9.debug(
-        `No custom endpoint found, using default: ${this.networkConfig.DEFAULT_ENDPOINT}`
-      );
-    }
+  static connections = /* @__PURE__ */ new Map();
+  static providers = /* @__PURE__ */ new Map();
+  static connecting = /* @__PURE__ */ new Map();
+  // ============================================================================
+  // MAIN PUBLIC API
+  // ============================================================================
+  /**
+   * Get a RELAY chain connection (lazy loading)
+   */
+  static async getRelayConnection(runtime) {
+    return _PolkadotApiService.getConnection(runtime, "relay" /* RELAY */);
   }
   /**
-   * Get a connection to the Polkadot API
-   * If a connection is already established, it will be reused
-   * If no connection exists, a new one will be created
-   * If a connection is being established, the existing promise will be returned
+   * Get an ASSET_HUB connection (lazy loading)
    */
-  async getConnection() {
-    if (this.api?.isConnected) {
-      return this.api;
+  static async getAssetHubConnection(runtime) {
+    return _PolkadotApiService.getConnection(runtime, "asset-hub" /* ASSET_HUB */);
+  }
+  /**
+   * Connect to both networks
+   * Throws if either connection fails
+   */
+  static async connectBothNetworks(runtime) {
+    const results = await Promise.allSettled([
+      _PolkadotApiService.getConnection(runtime, "relay" /* RELAY */),
+      _PolkadotApiService.getConnection(runtime, "asset-hub" /* ASSET_HUB */)
+    ]);
+    const failures = results.map((result, index) => ({
+      network: index === 0 ? "relay" /* RELAY */ : "asset-hub" /* ASSET_HUB */,
+      result
+    })).filter(({ result }) => result.status === "rejected").map(
+      ({ network, result }) => `${network}: ${result.status === "rejected" ? result.reason : "Unknown error"}`
+    );
+    if (failures.length > 0) {
+      throw new Error(`Failed to connect networks: ${failures.join(", ")}`);
     }
-    if (this.connecting && this.connectionPromise) {
-      return this.connectionPromise;
+  }
+  // ============================================================================
+  // CONNECTION MANAGEMENT
+  // ============================================================================
+  /**
+   * Get connection for any network type (internal method)
+   */
+  static async getConnection(runtime, networkType) {
+    const existingConnection = _PolkadotApiService.connections.get(networkType);
+    if (existingConnection?.isConnected) {
+      return existingConnection;
     }
-    this.connecting = true;
-    this.connectionPromise = this.connectWithRetry();
+    const existingPromise = _PolkadotApiService.connecting.get(networkType);
+    if (existingPromise) {
+      return existingPromise;
+    }
+    const connectionPromise = _PolkadotApiService.createConnection(runtime, networkType);
+    _PolkadotApiService.connecting.set(networkType, connectionPromise);
     try {
-      this.api = await this.connectionPromise;
-      return this.api;
+      const connection = await connectionPromise;
+      _PolkadotApiService.connections.set(networkType, connection);
+      return connection;
     } finally {
-      this.connecting = false;
-      this.connectionPromise = null;
+      _PolkadotApiService.connecting.delete(networkType);
     }
   }
   /**
-   * Connect to the Polkadot API with retry logic
-   * @param retryCount Current retry attempt number
+   * Create a new connection with retry logic
    */
-  async connectWithRetry(retryCount = 0) {
-    try {
-      const endpoint = this.getNextEndpoint();
-      logger9.debug(`Connecting to Polkadot at ${endpoint}`);
-      this.provider = new WsProvider(endpoint);
-      this.api = await ApiPromise.create({ provider: this.provider });
-      logger9.debug(`Connected to Polkadot at ${endpoint}`);
-      return this.api;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger9.error(`Polkadot connection error: ${message}`);
-      if (retryCount < this.networkConfig.MAX_RETRIES) {
-        const delay = this.networkConfig.RETRY_DELAY * 2 ** retryCount;
-        logger9.debug(`Retrying connection in ${delay}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        return this.connectWithRetry(retryCount + 1);
+  static async createConnection(runtime, networkType) {
+    const config = await _PolkadotApiService.getNetworkConfig(runtime, networkType);
+    const endpoints = [config.DEFAULT_ENDPOINT, ...config.BACKUP_ENDPOINTS];
+    let lastError = null;
+    for (let attempt = 0; attempt < config.MAX_RETRIES; attempt++) {
+      for (const endpoint of endpoints) {
+        try {
+          logger9.debug(
+            `Connecting to ${networkType} at ${endpoint} (attempt ${attempt + 1})`
+          );
+          const provider = new WsProvider(endpoint);
+          const connectionPromise = ApiPromise.create({ provider });
+          const timeoutPromise = new Promise(
+            (_, reject) => setTimeout(() => reject(new Error("Connection timeout after 15s")), 15e3)
+          );
+          const api = await Promise.race([connectionPromise, timeoutPromise]);
+          _PolkadotApiService.providers.set(networkType, provider);
+          logger9.debug(`Connected to ${networkType} at ${endpoint}`);
+          return api;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          logger9.warn(
+            `Failed to connect to ${networkType} at ${endpoint}: ${lastError.message}`
+          );
+        }
       }
-      throw new Error(
-        `Failed to connect to Polkadot after ${this.networkConfig.MAX_RETRIES} attempts`
-      );
+      if (attempt < config.MAX_RETRIES - 1 && endpoints.length > 1) {
+        const delay = 500;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
+    throw new Error(
+      `Failed to connect to ${networkType} after ${config.MAX_RETRIES} attempts. Last error: ${lastError?.message}`
+    );
   }
   /**
-   * Get the next endpoint to try from the configured endpoints
-   * This implements a round-robin selection strategy
+   * Get network configuration with environment overrides
    */
-  getNextEndpoint() {
-    const allEndpoints = [
-      this.networkConfig.DEFAULT_ENDPOINT,
-      ...this.networkConfig.BACKUP_ENDPOINTS
+  static async getNetworkConfig(runtime, networkType) {
+    const config = { ...NETWORK_CONFIGS[networkType] };
+    try {
+      const networkConfig = await validateNetworkConfig(runtime);
+      const customEndpoint = getNetworkRpcUrl(networkConfig, networkType);
+      if (customEndpoint) {
+        config.DEFAULT_ENDPOINT = customEndpoint;
+        config.BACKUP_ENDPOINTS = [];
+        logger9.debug(`Using custom ${networkType} endpoint: ${customEndpoint}`);
+      }
+    } catch (_error) {
+      logger9.warn(`Failed to load custom config for ${networkType}, using defaults`);
+    }
+    return config;
+  }
+  // ============================================================================
+  // STATUS AND CLEANUP
+  // ============================================================================
+  /**
+   * Check if a specific network is connected
+   */
+  static isConnected(networkType) {
+    const connection = _PolkadotApiService.connections.get(networkType);
+    return !!connection && connection.isConnected;
+  }
+  /**
+   * Check if both networks are connected
+   */
+  static areBothNetworksConnected() {
+    return _PolkadotApiService.isConnected("relay" /* RELAY */) && _PolkadotApiService.isConnected("asset-hub" /* ASSET_HUB */);
+  }
+  /**
+   * Disconnect a specific network
+   */
+  static async disconnect(networkType) {
+    const connection = _PolkadotApiService.connections.get(networkType);
+    const provider = _PolkadotApiService.providers.get(networkType);
+    if (connection) {
+      await connection.disconnect();
+      _PolkadotApiService.connections.delete(networkType);
+    }
+    if (provider) {
+      provider.disconnect();
+      _PolkadotApiService.providers.delete(networkType);
+    }
+    logger9.debug(`Disconnected from ${networkType}`);
+  }
+  /**
+   * Disconnect all networks
+   */
+  static async disconnectAll() {
+    const disconnectPromises = [
+      _PolkadotApiService.disconnect("relay" /* RELAY */),
+      _PolkadotApiService.disconnect("asset-hub" /* ASSET_HUB */)
     ];
-    this.lastEndpointIndex = this.lastEndpointIndex % allEndpoints.length;
-    logger9.debug(`Next endpoint: ${allEndpoints[this.lastEndpointIndex]}`);
-    return allEndpoints[this.lastEndpointIndex];
-  }
-  /**
-   * Disconnect from the Polkadot API
-   * This should be called when the application is shutting down
-   */
-  async disconnect() {
-    if (this.api) {
-      await this.api.disconnect();
-      this.api = null;
-    }
-    if (this.provider) {
-      this.provider.disconnect();
-      this.provider = null;
-    }
-  }
-  /**
-   * Check if a connection is currently established
-   */
-  isConnected() {
-    return !!this.api && this.api.isConnected;
-  }
-  /**
-   * Get information about the current connection
-   * Returns null if no connection is established
-   */
-  getConnectionInfo() {
-    if (!this.provider) {
-      return null;
-    }
-    return {
-      endpoint: this.provider.endpoint,
-      connected: this.isConnected()
-    };
-  }
-  /**
-   * Set custom endpoints for the API connection
-   * This allows endpoints to be configured at runtime
-   * @param endpoints Array of WebSocket endpoints
-   */
-  setCustomEndpoints(endpoints) {
-    if (!endpoints || endpoints.length === 0) {
-      return;
-    }
-    if (endpoints.some((e) => e.startsWith("wss://") || e.startsWith("ws://"))) {
-      Object.defineProperty(this.networkConfig, "DEFAULT_ENDPOINT", {
-        value: endpoints[0],
-        writable: true
-      });
-      Object.defineProperty(this.networkConfig, "BACKUP_ENDPOINTS", {
-        value: endpoints.slice(1),
-        writable: true
-      });
-      this.lastEndpointIndex = 0;
-      logger9.debug(`Updated Polkadot API endpoints: ${endpoints.join(", ")}`);
-    }
+    await Promise.all(disconnectPromises);
+    logger9.debug("Disconnected from all networks");
   }
 };
 
 // src/actions/getBalance.ts
-var getBalanceSchema = z7.object({
-  address: z7.string().min(1, "Address is required")
+var getBalanceSchema = z8.object({
+  address: z8.string().min(1, "Address is required")
 });
 var addressTemplate = `Respond with a JSON markdown block containing only the extracted values. Use null for any values that cannot be determined.
   Example response:
@@ -1971,7 +2077,12 @@ async function buildGetBalanceDetails(runtime, _message, state) {
     }
   }
   logger10.info(parsedResponse);
-  return parsedResponse;
+  const validatedResponse = getBalanceSchema.safeParse(parsedResponse);
+  logger10.info(validatedResponse);
+  if (!validatedResponse.success) {
+    throw new Error("Failed to extract a valid Polkadot address from the message");
+  }
+  return validatedResponse.data;
 }
 var GetBalanceAction = class {
   runtime;
@@ -1981,8 +2092,7 @@ var GetBalanceAction = class {
   async getBalance(params) {
     try {
       logger10.debug("Initializing getBalance for address:", params.address);
-      const apiService = await PolkadotApiService.start(this.runtime);
-      const api = await apiService.getConnection();
+      const api = await PolkadotApiService.getRelayConnection(this.runtime);
       logger10.debug("API connection established");
       const accountInfo = await api.query.system.account(params.address);
       logger10.debug("Account info retrieved:", accountInfo.toHuman());
@@ -2140,22 +2250,23 @@ Note: Free balance is the amount available for transfers and transactions. Reser
 
 // src/actions/getBlockInfo.ts
 import { logger as logger11, ModelType as ModelType7, composePromptFromState as composePromptFromState7, parseJSONObjectFromText as parseJSONObjectFromText7 } from "@elizaos/core";
-import { z as z8 } from "zod";
-var blockInfoSchema = z8.object({
-  blockNumberOrHash: z8.string().min(1, "Block number or hash is required")
+import { z as z9 } from "zod";
+var blockInfoSchema = z9.object({
+  blockNumberOrHash: z9.string().min(1, "Block number or hash is required")
 });
 var blockInfoTemplate = `Respond with a JSON markdown block containing only the extracted values. Use null for any values that cannot be determined.
   Example response:
-
+  \`\`\`json
   {
     "blockNumberOrHash": "12345678" 
   }
-
+  \`\`\`
   or
-
+  \`\`\`json
   {
     "blockNumberOrHash": "0x1a2b3c4d5e6f..."
   }
+  \`\`\`
   
   {{recentMessages}}
 
@@ -2201,13 +2312,14 @@ var GetBlockInfoAction = class {
   }
   async getBlockInfo(params) {
     try {
-      const apiService = await PolkadotApiService.start(this.runtime);
-      const api = await apiService.getConnection();
+      const api = await PolkadotApiService.getRelayConnection(this.runtime);
       let blockHash;
       if (params.blockNumberOrHash.startsWith("0x")) {
         blockHash = params.blockNumberOrHash;
       } else {
-        const hashResult = await api.rpc.chain.getBlockHash(parseInt(params.blockNumberOrHash));
+        const hashResult = await api.rpc.chain.getBlockHash(
+          parseInt(params.blockNumberOrHash)
+        );
         blockHash = hashResult.toString();
       }
       const [blockResult, eventsResult, timestampResult] = await Promise.allSettled([
@@ -2233,7 +2345,9 @@ var GetBlockInfoAction = class {
         parentHash: block.header.parentHash.toString(),
         stateRoot: block.header.stateRoot.toString(),
         extrinsicsRoot: block.header.extrinsicsRoot.toString(),
-        timestamp: timestamp !== null && timestamp !== void 0 ? new Date(timestamp.toNumber()).toISOString() : "Unknown",
+        timestamp: timestamp !== null && timestamp !== void 0 ? new Date(
+          timestamp.toNumber()
+        ).toISOString() : "Unknown",
         extrinsicsCount: block.extrinsics.toArray().length,
         // Convert to array first
         eventsCount: Array.isArray(events) ? events.length : 0
@@ -2353,11 +2467,11 @@ Block Content:
 
 // src/actions/getBlockEvents.ts
 import { logger as logger12, ModelType as ModelType8, composePromptFromState as composePromptFromState8, parseJSONObjectFromText as parseJSONObjectFromText8 } from "@elizaos/core";
-import { z as z9 } from "zod";
-var blockEventsSchema = z9.object({
-  blockNumberOrHash: z9.string().min(1, "Block number or hash is required"),
-  filterModule: z9.string().optional().nullable().transform((val) => val === "null" || val === null ? void 0 : val),
-  limit: z9.union([z9.number(), z9.string()]).optional().nullable().transform((val) => {
+import { z as z10 } from "zod";
+var blockEventsSchema = z10.object({
+  blockNumberOrHash: z10.string().min(1, "Block number or hash is required"),
+  filterModule: z10.string().optional().nullable().transform((val) => val === "null" || val === null ? void 0 : val),
+  limit: z10.union([z10.number(), z10.string()]).optional().nullable().transform((val) => {
     if (val === "null" || val === null || val === void 0) return void 0;
     const num = typeof val === "string" ? parseInt(val) : val;
     return Number.isNaN(num) ? void 0 : Math.min(Math.max(num, 1), 1e3);
@@ -2467,8 +2581,7 @@ var GetBlockEventsAction = class {
   }
   async getBlockEvents(params) {
     try {
-      const apiService = await PolkadotApiService.start(this.runtime);
-      const api = await apiService.getConnection();
+      const api = await PolkadotApiService.getRelayConnection(this.runtime);
       let blockHash;
       let blockNumber;
       if (params.blockNumberOrHash.startsWith("0x")) {
@@ -2481,36 +2594,38 @@ var GetBlockEventsAction = class {
       }
       const eventsAtBlock = await api.query.system.events.at(blockHash);
       const eventsArray = Array.from(eventsAtBlock);
-      let processedEvents = eventsArray.map((eventRecord, index) => {
-        const event = eventRecord.event;
-        const phase = eventRecord.phase;
-        const section = event.section.toString();
-        const method = event.method.toString();
-        const data = event.data.toJSON();
-        let phaseDesc = "Unknown";
-        try {
-          if (phase.isApplyExtrinsic) {
-            phaseDesc = `Extrinsic ${phase.asApplyExtrinsic?.toString() || "Unknown"}`;
-          } else if (phase.isFinalization) {
-            phaseDesc = "Finalization";
-          } else if (phase.isInitialization) {
-            phaseDesc = "Initialization";
-          } else {
-            phaseDesc = phase.type || "Unknown";
+      let processedEvents = eventsArray.map(
+        (eventRecord, index) => {
+          const event = eventRecord.event;
+          const phase = eventRecord.phase;
+          const section = event.section.toString();
+          const method = event.method.toString();
+          const data = event.data.toJSON();
+          let phaseDesc = "Unknown";
+          try {
+            if (phase.isApplyExtrinsic) {
+              phaseDesc = `Extrinsic ${phase.asApplyExtrinsic?.toString() || "Unknown"}`;
+            } else if (phase.isFinalization) {
+              phaseDesc = "Finalization";
+            } else if (phase.isInitialization) {
+              phaseDesc = "Initialization";
+            } else {
+              phaseDesc = phase.type || "Unknown";
+            }
+          } catch {
+            phaseDesc = "Unknown";
           }
-        } catch {
-          phaseDesc = "Unknown";
+          const summary = createEventSummary(section, method, data);
+          return {
+            index,
+            section,
+            method,
+            dataCount: data.length,
+            phase: phaseDesc,
+            summary
+          };
         }
-        const summary = createEventSummary(section, method, data);
-        return {
-          index,
-          section,
-          method,
-          dataCount: data.length,
-          phase: phaseDesc,
-          summary
-        };
-      });
+      );
       const totalEvents = processedEvents.length;
       if (params.filterModule) {
         processedEvents = processedEvents.filter(
@@ -2661,9 +2776,9 @@ ${eventsDisplay}${moreEventsText}` : "\u274C No events found with the applied fi
 
 // src/actions/getReferenda.ts
 import { logger as logger13, ModelType as ModelType9, composePromptFromState as composePromptFromState9, parseJSONObjectFromText as parseJSONObjectFromText9 } from "@elizaos/core";
-import { z as z10 } from "zod";
-var referendaSchema = z10.object({
-  limit: z10.union([z10.number(), z10.string()]).optional().nullable().transform((val) => {
+import { z as z11 } from "zod";
+var referendaSchema = z11.object({
+  limit: z11.union([z11.number(), z11.string()]).optional().nullable().transform((val) => {
     if (val === "null" || val === null || val === void 0) return void 0;
     const num = typeof val === "string" ? parseInt(val) : val;
     return Number.isNaN(num) ? void 0 : Math.min(Math.max(num, 1), 50);
@@ -2774,8 +2889,7 @@ var GetReferendaAction = class {
   }
   async getReferenda(limit = 10) {
     try {
-      const apiService = await PolkadotApiService.start(this.runtime);
-      const api = await apiService.getConnection();
+      const api = await PolkadotApiService.getRelayConnection(this.runtime);
       const referendumCount = await api.query.referenda.referendumCount();
       const totalCount = parseInt(referendumCount.toString());
       const referenda = [];
@@ -2976,9 +3090,9 @@ ${referendaDisplay}` : "\u274C No referenda found."}
 
 // src/actions/getReferendumDetails.ts
 import { logger as logger14, ModelType as ModelType10, composePromptFromState as composePromptFromState10, parseJSONObjectFromText as parseJSONObjectFromText10 } from "@elizaos/core";
-import { z as z11 } from "zod";
-var referendumDetailsSchema = z11.object({
-  referendumId: z11.union([z11.number(), z11.string()]).transform((val) => {
+import { z as z12 } from "zod";
+var referendumDetailsSchema = z12.object({
+  referendumId: z12.union([z12.number(), z12.string()]).transform((val) => {
     const num = typeof val === "string" ? parseInt(val) : val;
     if (Number.isNaN(num) || num < 0) {
       throw new Error("Invalid referendum ID");
@@ -3092,8 +3206,7 @@ var GetReferendumDetailsAction = class {
   }
   async getReferendumDetails(referendumId) {
     try {
-      const apiService = await PolkadotApiService.start(this.runtime);
-      const api = await apiService.getConnection();
+      const api = await PolkadotApiService.getRelayConnection(this.runtime);
       const referendumCount = await api.query.referenda.referendumCount();
       const totalCount = parseInt(referendumCount.toString());
       if (referendumId >= totalCount) {
@@ -3156,9 +3269,15 @@ var GetReferendumDetailsAction = class {
             ayes: info.ongoing.tally.ayes?.toString() || "0",
             nays: info.ongoing.tally.nays?.toString() || "0",
             support: info.ongoing.tally.support?.toString() || "0",
-            formattedAyes: formatTokenAmount2(info.ongoing.tally.ayes?.toString() || "0"),
-            formattedNays: formatTokenAmount2(info.ongoing.tally.nays?.toString() || "0"),
-            formattedSupport: formatTokenAmount2(info.ongoing.tally.support?.toString() || "0")
+            formattedAyes: formatTokenAmount2(
+              info.ongoing.tally.ayes?.toString() || "0"
+            ),
+            formattedNays: formatTokenAmount2(
+              info.ongoing.tally.nays?.toString() || "0"
+            ),
+            formattedSupport: formatTokenAmount2(
+              info.ongoing.tally.support?.toString() || "0"
+            )
           };
         }
         referendum.inQueue = info.ongoing.inQueue || false;
@@ -3355,54 +3474,53 @@ Queue Status: ${referendum.inQueue ? "In queue" : "Not in queue"}`;
 
 // src/providers/networkData.ts
 import { logger as logger15 } from "@elizaos/core";
-var ChainDataService = class {
-  apiService;
-  async initialize(runtime) {
-    this.apiService = await PolkadotApiService.start(runtime);
-  }
-  async getChainInfo() {
-    const api = await this.apiService.getConnection();
-    const [chain, nodeName, nodeVersion, properties, health, bestNumber, finalizedNumber] = await Promise.all([
-      api.rpc.system.chain(),
-      api.rpc.system.name(),
-      api.rpc.system.version(),
-      api.rpc.system.properties(),
-      api.rpc.system.health(),
-      api.derive.chain.bestNumber(),
-      api.derive.chain.bestNumberFinalized()
-    ]);
-    const typedProperties = properties;
-    const typedHealth = health;
-    const chainInfo = {
-      name: chain.toString(),
-      nodeName: nodeName.toString(),
-      nodeVersion: nodeVersion.toString(),
-      properties: {
-        tokenSymbol: typedProperties.tokenSymbol.unwrap()[0].toString(),
-        tokenDecimals: typedProperties.tokenDecimals.unwrap()[0].toNumber()
-      },
-      health: {
-        peers: typedHealth.peers.toNumber(),
-        isSyncing: typedHealth.isSyncing.valueOf(),
-        shouldHavePeers: typedHealth.shouldHavePeers.valueOf()
-      },
-      blocks: {
-        best: bestNumber.toString(),
-        finalized: finalizedNumber.toString()
-      },
-      timestamp: Date.now()
-    };
-    return chainInfo;
-  }
-  async getValidatorCount() {
-    const api = await this.apiService.getConnection();
-    let count = 0;
+async function getChainInfo(api) {
+  const [chain, nodeName, nodeVersion, properties, health, bestNumber, finalizedNumber] = await Promise.all([
+    api.rpc.system.chain(),
+    api.rpc.system.name(),
+    api.rpc.system.version(),
+    api.rpc.system.properties(),
+    api.rpc.system.health(),
+    api.derive.chain.bestNumber(),
+    api.derive.chain.bestNumberFinalized()
+  ]);
+  const typedProperties = properties;
+  const typedHealth = health;
+  const chainInfo = {
+    name: chain.toString(),
+    nodeName: nodeName.toString(),
+    nodeVersion: nodeVersion.toString(),
+    properties: {
+      tokenSymbol: typedProperties.tokenSymbol.unwrap()[0].toString(),
+      tokenDecimals: typedProperties.tokenDecimals.unwrap()[0].toNumber()
+    },
+    health: {
+      peers: typedHealth.peers.toNumber(),
+      isSyncing: typedHealth.isSyncing.valueOf(),
+      shouldHavePeers: typedHealth.shouldHavePeers.valueOf()
+    },
+    blocks: {
+      best: bestNumber.toString(),
+      finalized: finalizedNumber.toString()
+    },
+    timestamp: Date.now()
+  };
+  return chainInfo;
+}
+async function getValidatorCount(api) {
+  let count = 0;
+  try {
+    const validators = await api.query.session.validators();
+    const validatorsCodec = validators;
+    const validatorsArray = validatorsCodec.toJSON();
+    count = Array.isArray(validatorsArray) ? validatorsArray.length : 0;
+  } catch (_error) {
     try {
       const validators = await api.query.session.validators();
       const validatorsCodec = validators;
       const validatorsArray = validatorsCodec.toJSON();
       count = Array.isArray(validatorsArray) ? validatorsArray.length : 0;
-    } catch (_error) {
+    } catch (_error2) {
       try {
         const validatorCount = await api.query.staking.validatorCount();
         count = parseInt(validatorCount.toString());
@@ -3411,59 +3529,65 @@ var ChainDataService = class {
         logger15.error(`Error fetching validator count: ${message}`);
       }
     }
-    return count;
   }
-  async getParachainCount() {
-    const api = await this.apiService.getConnection();
-    let count = 0;
-    try {
-      if (api.query.paras?.parachains) {
-        const parachains = await api.query.paras.parachains();
-        const parachainsCodec = parachains;
-        const parachainsArray = parachainsCodec.toJSON();
-        count = Array.isArray(parachainsArray) ? parachainsArray.length : 0;
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger15.error(`Error fetching parachain count: ${message}`);
+  return count;
+}
+async function getParachainCount(api) {
+  let count = 0;
+  try {
+    if (api.query.paras?.parachains) {
+      const parachains = await api.query.paras.parachains();
+      const parachainsCodec = parachains;
+      const parachainsArray = parachainsCodec.toJSON();
+      count = Array.isArray(parachainsArray) ? parachainsArray.length : 0;
     }
-    return count;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger15.error(`Error fetching parachain count: ${message}`);
+    count = 0;
   }
-  formatChainInfo(chainInfo) {
-    const timeSinceUpdate = Math.floor((Date.now() - chainInfo.timestamp) / 1e3);
-    return `Polkadot Network Status (updated ${timeSinceUpdate}s ago):
+  return count;
+}
+function formatChainInfo(chainInfo, validatorCount, parachainCount) {
+  const timeSinceUpdate = Math.floor((Date.now() - chainInfo.timestamp) / 1e3);
+  let output = `Polkadot Network Status (updated ${timeSinceUpdate}s ago):
 - Network: ${chainInfo.name}
 - Connected: ${chainInfo.health.peers > 0 ? "Yes" : "No"} (${chainInfo.health.peers} peers)
 - Synced: ${!chainInfo.health.isSyncing ? "Yes" : "No"}
 - Latest Block: #${chainInfo.blocks.best} (finalized: #${chainInfo.blocks.finalized})
 - Native Token: ${chainInfo.properties.tokenSymbol}`;
+  if (validatorCount !== void 0 && validatorCount > 0) {
+    output += `
+- Active Validators: ${validatorCount}`;
   }
-};
+  if (parachainCount !== void 0 && parachainCount > 0) {
+    output += `
+- Connected Parachains: ${parachainCount}`;
+  }
+  return output;
+}
 var networkDataProvider = {
   name: "NETWORK_DATA_PROVIDER",
-  async get(_runtime, _message, _state) {
+  async get(runtime, _message, _state) {
     try {
-      const chainDataService = new ChainDataService();
-      await chainDataService.initialize(_runtime);
-      const chainInfo = await chainDataService.getChainInfo();
+      logger15.debug("Starting network data provider...");
+      const api = await PolkadotApiService.getRelayConnection(runtime);
+      logger15.debug("API connection established");
+      const chainInfo = await getChainInfo(api);
+      logger15.debug("Chain info retrieved:", chainInfo);
       const [validatorCount, parachainCount] = await Promise.all([
-        chainDataService.getValidatorCount(),
-        chainDataService.getParachainCount()
+        getValidatorCount(api),
+        getParachainCount(api)
       ]);
-      let output = chainDataService.formatChainInfo(chainInfo);
-      if (validatorCount > 0) {
-        output += `
-- Active Validators: ${validatorCount}`;
-      }
-      if (parachainCount > 0) {
-        output += `
-- Connected Parachains: ${parachainCount}`;
-      }
+      logger15.debug("Additional counts retrieved:", { validatorCount, parachainCount });
+      const output = formatChainInfo(chainInfo, validatorCount, parachainCount);
       logger15.info("Network Data Provider output generated", output);
       return {
         text: output,
         data: {
-          networkInfo: chainInfo
+          networkInfo: chainInfo,
+          validatorCount,
+          parachainCount
         }
       };
     } catch (error) {
@@ -3482,13 +3606,13 @@ var networkData_default = networkDataProvider;
 
 // src/actions/transferFunds.ts
 import { logger as logger16, ModelType as ModelType11, composePromptFromState as composePromptFromState11, parseJSONObjectFromText as parseJSONObjectFromText11 } from "@elizaos/core";
-import { z as z12 } from "zod";
-var transferFundsSchema = z12.object({
-  recipientAddress: z12.string(),
-  amount: z12.string(),
-  walletNumber: z12.number().optional().nullable(),
-  walletAddress: z12.string().optional().nullable(),
-  password: z12.string().optional().nullable()
+import { z as z13 } from "zod";
+var transferFundsSchema = z13.object({
+  recipientAddress: z13.string(),
+  amount: z13.string(),
+  walletNumber: z13.number().optional().nullable(),
+  walletAddress: z13.string().optional().nullable(),
+  password: z13.string().optional().nullable()
 });
 var transferFundsTemplate = `Respond with a JSON markdown block containing only the extracted values. Use null for any values that cannot be determined.
   Example response:
@@ -3563,8 +3687,7 @@ var TransferFundsAction = class {
     if (!keypair) {
       throw new Error("No keypair found in the wallet");
     }
-    const apiService = await PolkadotApiService.start(this.runtime);
-    const api = await apiService.getConnection();
+    const api = await PolkadotApiService.getRelayConnection(this.runtime);
     logger16.debug("API connection established");
     const properties = await api.rpc.system.properties();
     const tokenDecimals = properties.tokenDecimals.unwrap()[0].toNumber();
@@ -3686,7 +3809,7 @@ import { logger as logger17, ModelType as ModelType12, composePromptFromState as
 import { AssetTransferApi, constructApiPromise } from "@substrate/asset-transfer-api";
 
 // src/utils/chainRegistryUtils.ts
-import { z as z13 } from "zod";
+import { z as z14 } from "zod";
 var CHAIN_RPC_MAPPING = {
   polkadot: "wss://rpc.polkadot.io",
   paseo: "wss://rpc.paseo.io",
@@ -3745,36 +3868,36 @@ var CHAIN_RPC_MAPPING = {
   sora: "wss://sora-rpc.dwellir.com",
   substrate: "wss://substrate-rpc.dwellir.com"
 };
-var AssetDetailsSchema = z13.object({
-  asset: z13.string(),
-  symbol: z13.string(),
-  decimals: z13.number()
+var AssetDetailsSchema = z14.object({
+  asset: z14.string(),
+  symbol: z14.string(),
+  decimals: z14.number()
 });
-var SpecRegistrySchema = z13.record(z13.string(), AssetDetailsSchema);
-var RegistryAssetInfoEntrySchema = z13.object({
-  tokens: z13.array(z13.string()),
-  assetsInfo: z13.record(z13.string(), z13.string()),
-  foreignAssetsInfo: z13.record(z13.string(), z13.union([z13.string(), z13.record(z13.unknown())])),
-  poolPairsInfo: z13.record(z13.string(), z13.union([z13.string(), z13.record(z13.unknown())])),
-  specName: z13.string(),
-  nativeChainID: z13.string().optional(),
-  registry: z13.record(z13.string(), SpecRegistrySchema).optional()
+var SpecRegistrySchema = z14.record(z14.string(), AssetDetailsSchema);
+var RegistryAssetInfoEntrySchema = z14.object({
+  tokens: z14.array(z14.string()),
+  assetsInfo: z14.record(z14.string(), z14.string()),
+  foreignAssetsInfo: z14.record(z14.string(), z14.union([z14.string(), z14.record(z14.unknown())])),
+  poolPairsInfo: z14.record(z14.string(), z14.union([z14.string(), z14.record(z14.unknown())])),
+  specName: z14.string(),
+  nativeChainID: z14.string().optional(),
+  registry: z14.record(z14.string(), SpecRegistrySchema).optional()
 });
-var RegistryChainEntriesSchema = z13.record(z13.string(), RegistryAssetInfoEntrySchema);
-var FullRegistryDataSchema = z13.record(z13.string(), RegistryChainEntriesSchema);
+var RegistryChainEntriesSchema = z14.record(z14.string(), RegistryAssetInfoEntrySchema);
+var FullRegistryDataSchema = z14.record(z14.string(), RegistryChainEntriesSchema);
 
 // src/actions/crossChainTransfer.ts
-import { z as z14 } from "zod";
-var crossChainTransferSchema = z14.object({
-  recipientAddress: z14.string(),
-  amount: z14.string(),
-  sourceChain: z14.string(),
-  destinationChain: z14.string(),
-  destinationParachainId: z14.string(),
-  assetId: z14.string(),
-  walletNumber: z14.number().optional().nullable(),
-  walletAddress: z14.string().optional().nullable(),
-  password: z14.string().optional().nullable()
+import { z as z15 } from "zod";
+var crossChainTransferSchema = z15.object({
+  recipientAddress: z15.string(),
+  amount: z15.string(),
+  sourceChain: z15.string(),
+  destinationChain: z15.string(),
+  destinationParachainId: z15.string(),
+  assetId: z15.string(),
+  walletNumber: z15.number().optional().nullable(),
+  walletAddress: z15.string().optional().nullable(),
+  password: z15.string().optional().nullable()
 });
 var crossChainTransferTemplate = `Respond with a JSON markdown block containing only the extracted values. Use null for any values that cannot be determined.
     Example response:
@@ -4029,7 +4152,7 @@ import { logger as logger18 } from "@elizaos/core/v2";
 var polkadotPlugin = {
   name: "polkadot",
   description: "Polkadot Plugin for Eliza",
-  init: async (config, runtime) => {
+  init: async (_config, runtime) => {
     logger18.log("Polkadot Plugin initialized");
     const rpcUrl = runtime.getSetting("POLKADOT_RPC_URL");
     if (!rpcUrl) {

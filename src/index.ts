@@ -13,6 +13,7 @@ import { WalletProvider, nativeWalletProvider } from './providers/wallet.ts';
 import networkDataProvider from './providers/networkData.ts';
 import transferFundsAction from './actions/transferFunds.ts';
 import crossChainTransferAction from './actions/crossChainTransfer.ts';
+import subsidizedTransferAction from './actions/subsidizedTransfer.ts';
 import { logger } from '@elizaos/core/v2';
 
 export {
@@ -29,6 +30,7 @@ export {
     validateSignatureAction as ValidateSignature,
     transferFundsAction as TransferPolkadotFunds,
     crossChainTransferAction as CrossChainTransfer,
+    subsidizedTransferAction as SubsidizedTransfer,
 };
 
 export const polkadotPlugin: Plugin = {
@@ -62,6 +64,7 @@ export const polkadotPlugin: Plugin = {
         validateSignatureAction,
         transferFundsAction,
         crossChainTransferAction,
+        subsidizedTransferAction,
     ],
     evaluators: [],
     providers: [nativeWalletProvider, networkDataProvider],

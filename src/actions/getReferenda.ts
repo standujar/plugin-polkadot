@@ -221,8 +221,7 @@ export class GetReferendaAction {
         referenda: ReferendumInfo[];
     }> {
         try {
-            const apiService = await PolkadotApiService.start(this.runtime);
-            const api = await apiService.getConnection();
+            const api = await PolkadotApiService.getRelayConnection(this.runtime);
 
             // Get the total referendum count
             const referendumCount = await api.query.referenda.referendumCount();

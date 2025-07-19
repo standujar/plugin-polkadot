@@ -1,6 +1,7 @@
 import type { IAgentRuntime, Memory, Provider, ProviderResult, State } from '@elizaos/core';
 import { logger } from '@elizaos/core';
 import { PolkadotApiService } from '../services/api-service';
+import type { ApiPromise } from '@polkadot/api';
 
 interface ChainInfo {
     name: string;
@@ -22,7 +23,7 @@ interface ChainInfo {
     timestamp: number;
 }
 
-// Define types for API responses to avoid using any
+// Define types for API responses
 interface PolkadotChainProperties {
     tokenSymbol: {
         unwrap: () => Array<{ toString: () => string }>;
@@ -44,58 +45,55 @@ interface PolkadotCodec {
     toNumber?: () => number;
 }
 
-class ChainDataService {
-    private apiService: PolkadotApiService;
+async function getChainInfo(api: ApiPromise): Promise<ChainInfo> {
+    const [chain, nodeName, nodeVersion, properties, health, bestNumber, finalizedNumber] =
+        await Promise.all([
+            api.rpc.system.chain(),
+            api.rpc.system.name(),
+            api.rpc.system.version(),
+            api.rpc.system.properties(),
+            api.rpc.system.health(),
+            api.derive.chain.bestNumber(),
+            api.derive.chain.bestNumberFinalized(),
+        ]);
 
-    public async initialize(runtime: IAgentRuntime): Promise<void> {
-        this.apiService = await PolkadotApiService.start(runtime);
-    }
+    // Type the properties response properly
+    const typedProperties = properties as unknown as PolkadotChainProperties;
+    const typedHealth = health as unknown as PolkadotHealth;
 
-    public async getChainInfo(): Promise<ChainInfo> {
-        const api = await this.apiService.getConnection();
+    const chainInfo: ChainInfo = {
+        name: chain.toString(),
+        nodeName: nodeName.toString(),
+        nodeVersion: nodeVersion.toString(),
+        properties: {
+            tokenSymbol: typedProperties.tokenSymbol.unwrap()[0].toString(),
+            tokenDecimals: typedProperties.tokenDecimals.unwrap()[0].toNumber(),
+        },
+        health: {
+            peers: typedHealth.peers.toNumber(),
+            isSyncing: typedHealth.isSyncing.valueOf(),
+            shouldHavePeers: typedHealth.shouldHavePeers.valueOf(),
+        },
+        blocks: {
+            best: bestNumber.toString(),
+            finalized: finalizedNumber.toString(),
+        },
+        timestamp: Date.now(),
+    };
 
-        const [chain, nodeName, nodeVersion, properties, health, bestNumber, finalizedNumber] =
-            await Promise.all([
-                api.rpc.system.chain(),
-                api.rpc.system.name(),
-                api.rpc.system.version(),
-                api.rpc.system.properties(),
-                api.rpc.system.health(),
-                api.derive.chain.bestNumber(),
-                api.derive.chain.bestNumberFinalized(),
-            ]);
+    return chainInfo;
+}
 
-        // Type the properties response properly
-        const typedProperties = properties as unknown as PolkadotChainProperties;
-        const typedHealth = health as unknown as PolkadotHealth;
+async function getValidatorCount(api: ApiPromise): Promise<number> {
+    let count = 0;
 
-        const chainInfo: ChainInfo = {
-            name: chain.toString(),
-            nodeName: nodeName.toString(),
-            nodeVersion: nodeVersion.toString(),
-            properties: {
-                tokenSymbol: typedProperties.tokenSymbol.unwrap()[0].toString(),
-                tokenDecimals: typedProperties.tokenDecimals.unwrap()[0].toNumber(),
-            },
-            health: {
-                peers: typedHealth.peers.toNumber(),
-                isSyncing: typedHealth.isSyncing.valueOf(),
-                shouldHavePeers: typedHealth.shouldHavePeers.valueOf(),
-            },
-            blocks: {
-                best: bestNumber.toString(),
-                finalized: finalizedNumber.toString(),
-            },
-            timestamp: Date.now(),
-        };
-
-        return chainInfo;
-    }
-
-    public async getValidatorCount(): Promise<number> {
-        const api = await this.apiService.getConnection();
-        let count = 0;
-
+    try {
+        // Try to get current validators from session
+        const validators = await api.query.session.validators();
+        const validatorsCodec = validators as unknown as PolkadotCodec;
+        const validatorsArray = validatorsCodec.toJSON() as unknown[];
+        count = Array.isArray(validatorsArray) ? validatorsArray.length : 0;
+    } catch (_error) {
         try {
             // Convert validators to array first
             const validators = await api.query.session.validators();
@@ -114,71 +112,84 @@ class ChainDataService {
                 logger.error(`Error fetching validator count: ${message}`);
             }
         }
-
-        return count;
     }
 
-    public async getParachainCount(): Promise<number> {
-        const api = await this.apiService.getConnection();
-        let count = 0;
+    return count;
+}
 
-        try {
-            if (api.query.paras?.parachains) {
-                const parachains = await api.query.paras.parachains();
-                // Convert to array first with proper typing
-                const parachainsCodec = parachains as unknown as PolkadotCodec;
-                const parachainsArray = parachainsCodec.toJSON() as unknown[];
-                count = Array.isArray(parachainsArray) ? parachainsArray.length : 0;
-            }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            logger.error(`Error fetching parachain count: ${message}`);
+async function getParachainCount(api: ApiPromise): Promise<number> {
+    let count = 0;
+
+    try {
+        if (api.query.paras?.parachains) {
+            const parachains = await api.query.paras.parachains();
+            const parachainsCodec = parachains as unknown as PolkadotCodec;
+            const parachainsArray = parachainsCodec.toJSON() as unknown[];
+            count = Array.isArray(parachainsArray) ? parachainsArray.length : 0;
         }
-
-        return count;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`Error fetching parachain count: ${message}`);
+        count = 0;
     }
 
-    public formatChainInfo(chainInfo: ChainInfo): string {
-        const timeSinceUpdate = Math.floor((Date.now() - chainInfo.timestamp) / 1000);
+    return count;
+}
 
-        return `Polkadot Network Status (updated ${timeSinceUpdate}s ago):
+function formatChainInfo(
+    chainInfo: ChainInfo,
+    validatorCount?: number,
+    parachainCount?: number,
+): string {
+    const timeSinceUpdate = Math.floor((Date.now() - chainInfo.timestamp) / 1000);
+
+    let output = `Polkadot Network Status (updated ${timeSinceUpdate}s ago):
 - Network: ${chainInfo.name}
 - Connected: ${chainInfo.health.peers > 0 ? 'Yes' : 'No'} (${chainInfo.health.peers} peers)
 - Synced: ${!chainInfo.health.isSyncing ? 'Yes' : 'No'}
 - Latest Block: #${chainInfo.blocks.best} (finalized: #${chainInfo.blocks.finalized})
 - Native Token: ${chainInfo.properties.tokenSymbol}`;
+
+    if (validatorCount !== undefined && validatorCount > 0) {
+        output += `\n- Active Validators: ${validatorCount}`;
     }
+
+    if (parachainCount !== undefined && parachainCount > 0) {
+        output += `\n- Connected Parachains: ${parachainCount}`;
+    }
+
+    return output;
 }
 
 export const networkDataProvider: Provider = {
     name: 'NETWORK_DATA_PROVIDER',
-    async get(_runtime: IAgentRuntime, _message: Memory, _state?: State): Promise<ProviderResult> {
+    async get(runtime: IAgentRuntime, _message: Memory, _state?: State): Promise<ProviderResult> {
         try {
-            const chainDataService = new ChainDataService();
-            await chainDataService.initialize(_runtime);
+            logger.debug('Starting network data provider...');
 
-            const chainInfo = await chainDataService.getChainInfo();
+            // Get relay chain connection
+            const api = await PolkadotApiService.getRelayConnection(runtime);
+            logger.debug('API connection established');
+
+            // Fetch all network data
+            const chainInfo = await getChainInfo(api);
+            logger.debug('Chain info retrieved:', chainInfo);
 
             const [validatorCount, parachainCount] = await Promise.all([
-                chainDataService.getValidatorCount(),
-                chainDataService.getParachainCount(),
+                getValidatorCount(api),
+                getParachainCount(api),
             ]);
+            logger.debug('Additional counts retrieved:', { validatorCount, parachainCount });
 
-            let output = chainDataService.formatChainInfo(chainInfo);
-
-            if (validatorCount > 0) {
-                output += `\n- Active Validators: ${validatorCount}`;
-            }
-
-            if (parachainCount > 0) {
-                output += `\n- Connected Parachains: ${parachainCount}`;
-            }
+            const output = formatChainInfo(chainInfo, validatorCount, parachainCount);
 
             logger.info('Network Data Provider output generated', output);
             return {
                 text: output,
                 data: {
                     networkInfo: chainInfo,
+                    validatorCount,
+                    parachainCount,
                 },
             };
         } catch (error) {

@@ -78,27 +78,8 @@ describe('TransferFundsAction', () => {
     });
 
     afterEach(async () => {
-        // Clean up any connections
-        if (transferFundsAction) {
-            try {
-                // Close API connections if they exist
-                if (
-                    (
-                        transferFundsAction as unknown as {
-                            apiService: { stop: () => Promise<void> };
-                        }
-                    ).apiService
-                ) {
-                    await (
-                        transferFundsAction as unknown as {
-                            apiService: { stop: () => Promise<void> };
-                        }
-                    ).apiService.stop();
-                }
-            } catch (_error) {
-                // Ignore cleanup errors
-            }
-        }
+        await PolkadotApiService.disconnectAll();
+        vi.restoreAllMocks();
     });
 
     describe('Schema Validation', () => {
@@ -210,32 +191,22 @@ describe('TransferFundsAction', () => {
 
     describe('API Service Integration', () => {
         it('should work with real API service', async () => {
-            const apiService = await PolkadotApiService.start(mockRuntime);
-            expect(apiService).toBeDefined();
-
-            // Clean up
-            await apiService.stop();
+            const api = await PolkadotApiService.getRelayConnection(mockRuntime);
+            expect(api).toBeDefined();
         });
 
         it('should handle API connection establishment', async () => {
-            const apiService = await PolkadotApiService.start(mockRuntime);
-            const connection = await apiService.getConnection();
-            expect(connection).toBeDefined();
-
-            // Clean up
-            await apiService.stop();
+            const api = await PolkadotApiService.getRelayConnection(mockRuntime);
+            expect(api).toBeDefined();
+            expect(api.isConnected).toBe(true);
         });
 
         it('should retrieve system properties', async () => {
-            const apiService = await PolkadotApiService.start(mockRuntime);
-            const connection = await apiService.getConnection();
-            const properties = await connection.rpc.system.properties();
+            const api = await PolkadotApiService.getRelayConnection(mockRuntime);
+            const properties = await api.rpc.system.properties();
 
             expect(properties).toBeDefined();
             expect(properties.tokenDecimals).toBeDefined();
-
-            // Clean up
-            await apiService.stop();
         });
     });
 

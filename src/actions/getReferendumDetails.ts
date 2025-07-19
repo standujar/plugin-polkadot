@@ -233,8 +233,7 @@ export class GetReferendumDetailsAction {
 
     async getReferendumDetails(referendumId: number): Promise<DetailedReferendumInfo> {
         try {
-            const apiService = await PolkadotApiService.start(this.runtime);
-            const api = await apiService.getConnection();
+            const api = await PolkadotApiService.getRelayConnection(this.runtime);
 
             // Get the total referendum count to validate the ID
             const referendumCount = await api.query.referenda.referendumCount();

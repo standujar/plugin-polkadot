@@ -1,5 +1,5 @@
 import type { IAgentRuntime } from '@elizaos/core';
-import { describe, it, vi, beforeEach, expect } from 'vitest';
+import { describe, it, vi, beforeEach, expect, afterEach } from 'vitest';
 import { GetReferendumDetailsAction } from '../actions/getReferendumDetails';
 import { PolkadotApiService } from '../services/api-service';
 import { CacheManager } from '../utils/cache';
@@ -24,7 +24,6 @@ vi.mock('@elizaos/core', async () => {
 describe('GetReferendumDetailsAction', () => {
     let mockRuntime: IAgentRuntime;
     let getReferendumDetailsAction: GetReferendumDetailsAction;
-    let apiService: PolkadotApiService;
 
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -46,8 +45,12 @@ describe('GetReferendumDetailsAction', () => {
             composeState: vi.fn().mockResolvedValue({}),
         } as unknown as IAgentRuntime;
 
-        apiService = await PolkadotApiService.start(mockRuntime);
         getReferendumDetailsAction = new GetReferendumDetailsAction(mockRuntime);
+    });
+
+    afterEach(async () => {
+        await PolkadotApiService.disconnectAll();
+        vi.restoreAllMocks();
     });
 
     describe('API Integration', () => {
@@ -138,7 +141,6 @@ describe('GetReferendumDetailsAction', () => {
         });
 
         it('should handle connection failures gracefully', async () => {
-            // Create a new instance with invalid RPC URL
             const badRuntime = {
                 ...mockRuntime,
                 getSetting: vi.fn().mockImplementation((param) => {
@@ -149,12 +151,9 @@ describe('GetReferendumDetailsAction', () => {
                 }),
             } as unknown as IAgentRuntime;
 
-            apiService.stop();
-            PolkadotApiService.start(badRuntime);
+            const badAction = new GetReferendumDetailsAction(badRuntime);
 
-            await expect(
-                getReferendumDetailsAction.getReferendumDetails(EXISTING_REFERENDUM_ID),
-            ).rejects.toThrow();
+            await expect(badAction.getReferendumDetails(EXISTING_REFERENDUM_ID)).rejects.toThrow();
         });
     });
 });

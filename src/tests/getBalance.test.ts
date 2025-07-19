@@ -1,5 +1,5 @@
 import type { IAgentRuntime } from '@elizaos/core';
-import { describe, it, vi, beforeEach, expect } from 'vitest';
+import { describe, it, vi, beforeEach, expect, afterEach } from 'vitest';
 import { GetBalanceAction } from '../actions/getBalance';
 import { PolkadotApiService } from '../services/api-service';
 import { CacheManager } from '../utils/cache';
@@ -26,7 +26,6 @@ vi.mock('@elizaos/core', async () => {
 describe('GetBalanceAction', () => {
     let mockRuntime: IAgentRuntime;
     let getBalanceAction: GetBalanceAction;
-    let apiService: PolkadotApiService;
 
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -48,8 +47,12 @@ describe('GetBalanceAction', () => {
             composeState: vi.fn().mockResolvedValue({}),
         } as unknown as IAgentRuntime;
 
-        apiService = await PolkadotApiService.start(mockRuntime);
         getBalanceAction = new GetBalanceAction(mockRuntime);
+    });
+
+    afterEach(async () => {
+        await PolkadotApiService.disconnectAll();
+        vi.restoreAllMocks();
     });
 
     describe('API Integration', () => {
@@ -132,18 +135,15 @@ describe('GetBalanceAction', () => {
                 ...mockRuntime,
                 getSetting: vi.fn().mockImplementation((param) => {
                     if (param === 'POLKADOT_RPC_URL') {
-                        return 'wss://invalid-url.com';
+                        return 'wss://localhost:9999';
                     }
                     return null;
                 }),
             } as unknown as IAgentRuntime;
 
-            apiService.stop();
-            PolkadotApiService.start(badRuntime);
+            const badAction = new GetBalanceAction(badRuntime);
 
-            await expect(
-                getBalanceAction.getBalance({ address: ADDRESS_WITH_BALANCE }),
-            ).rejects.toThrow();
+            await expect(badAction.getBalance({ address: ADDRESS_WITH_BALANCE })).rejects.toThrow();
         });
     });
 });

@@ -1,5 +1,5 @@
 import type { IAgentRuntime } from '@elizaos/core';
-import { describe, it, vi, beforeEach, expect } from 'vitest';
+import { describe, it, vi, beforeEach, expect, afterEach } from 'vitest';
 import { GetBlockEventsAction } from '../actions/getBlockEvents';
 import { PolkadotApiService } from '../services/api-service';
 import { CacheManager } from '../utils/cache';
@@ -24,7 +24,6 @@ vi.mock('@elizaos/core', async () => {
 describe('GetBlockEventsAction', () => {
     let mockRuntime: IAgentRuntime;
     let getBlockEventsAction: GetBlockEventsAction;
-    let apiService: PolkadotApiService;
 
     beforeEach(async () => {
         vi.clearAllMocks();
@@ -46,8 +45,12 @@ describe('GetBlockEventsAction', () => {
             composeState: vi.fn().mockResolvedValue({}),
         } as unknown as IAgentRuntime;
 
-        apiService = await PolkadotApiService.start(mockRuntime);
         getBlockEventsAction = new GetBlockEventsAction(mockRuntime);
+    });
+
+    afterEach(async () => {
+        await PolkadotApiService.disconnectAll();
+        vi.restoreAllMocks();
     });
 
     describe('API Integration', () => {
@@ -161,7 +164,6 @@ describe('GetBlockEventsAction', () => {
         });
 
         it('should handle connection failures gracefully', async () => {
-            // Create a new instance with invalid RPC URL
             const badRuntime = {
                 ...mockRuntime,
                 getSetting: vi.fn().mockImplementation((param) => {
@@ -172,11 +174,10 @@ describe('GetBlockEventsAction', () => {
                 }),
             } as unknown as IAgentRuntime;
 
-            apiService.stop();
-            PolkadotApiService.start(badRuntime);
+            const badAction = new GetBlockEventsAction(badRuntime);
 
             await expect(
-                getBlockEventsAction.getBlockEvents({
+                badAction.getBlockEvents({
                     blockNumberOrHash: RECENT_BLOCK_NUMBER,
                 }),
             ).rejects.toThrow();

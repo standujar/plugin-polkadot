@@ -117,8 +117,8 @@ export class GetBlockInfoAction {
         eventsCount: number;
     }> {
         try {
-            const apiService = await PolkadotApiService.start(this.runtime);
-            const api = await apiService.getConnection();
+            const api = await PolkadotApiService.getRelayConnection(this.runtime);
+
             let blockHash: string;
             if (params.blockNumberOrHash.startsWith('0x')) {
                 // This is a hash

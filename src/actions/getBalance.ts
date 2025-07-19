@@ -80,8 +80,7 @@ export class GetBalanceAction {
     }> {
         try {
             logger.debug('Initializing getBalance for address:', params.address);
-            const apiService = await PolkadotApiService.start(this.runtime);
-            const api = await apiService.getConnection();
+            const api = await PolkadotApiService.getRelayConnection(this.runtime);
             logger.debug('API connection established');
 
             const accountInfo = await api.query.system.account(params.address);
