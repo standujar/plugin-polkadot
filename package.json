@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-polkadot",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -22,7 +22,7 @@
     "dist"
   ],
   "dependencies": {
-    "@elizaos/core": "1.0.12",
+    "@elizaos/core": "1.5.11",
     "@polkadot/api": "16.2.1",
     "@polkadot/keyring": "13.5.1",
     "@polkadot/util": "13.5.1",
@@ -31,7 +31,7 @@
     "bignumber.js": "9.1.2",
     "node-cache": "5.1.2",
     "tsup": "8.3.5",
-    "zod": "^3.22.4"
+    "zod": "^4.0.5"
   },
   "devDependencies": {
     "@acala-network/chopsticks": "^1.1.1",
